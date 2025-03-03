@@ -1,0 +1,13 @@
+{
+  "name": "omni-worker-demos",
+  "version": "0.0.1",
+  "description": "A monorepo with examples on how to use OmniWorkers in your project",
+  "private": true,
+  "scripts": {},
+  "workspaces": [
+    "vanilla/*"
+  ],
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
