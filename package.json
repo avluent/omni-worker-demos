@@ -1,0 +1,14 @@
+{
+  "name": "omni-worker-demos",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "node-demos",
+    "web-vanilla",
+    "web-react",
+    "web-svelte"
+  ],
+  "dependencies": {
+    "@anonaddy/omni-worker": "git+https://github.com/avluent/omni-worker.git"
+  }
+}
