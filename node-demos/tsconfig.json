@@ -11,7 +11,12 @@
     "noUnusedParameters": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
-    "lib": ["ES2022"]
+    "lib": ["ES2022"],
+    "types": ["node"],
+    "baseUrl": ".",
+    "paths": {
+      "@anonaddy/omni-worker": ["../node_modules/@anonaddy/omni-worker"]
+    }
   },
-  "include": ["demos/**/*.ts", "vite.config.ts"]
+  "include": ["demos/**/*.ts", "runner.ts", "vite.config.ts"]
 }

@@ -9,6 +9,7 @@
     "web-svelte"
   ],
   "dependencies": {
-    "@anonaddy/omni-worker": "git+https://github.com/avluent/omni-worker.git"
+    "@anonaddy/omni-worker": "git+https://github.com/avluent/omni-worker.git",
+    "lodash-es": "^4.17.21"
   }
 }
