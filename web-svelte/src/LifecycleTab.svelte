@@ -150,7 +150,7 @@
 <div aria-live="polite" aria-atomic="true">
   {#if stateLabel}
     <div class="state-indicator {isAlive ? 'alive' : 'destroyed'}">
-      <span class="state-dot"></span>
+      <span class="state-dot" aria-hidden="true"></span>
       <span>{stateLabel}</span>
     </div>
   {/if}
@@ -159,7 +159,7 @@
 <!-- Result area -->
 <div aria-live="assertive" role="alert">
   {#if running}
-    <div class="result-box">
+    <div class="status-footer state-running">
       <span class="spinner" aria-hidden="true"></span> Testing worker...
     </div>
   {/if}

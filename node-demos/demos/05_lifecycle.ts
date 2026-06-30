@@ -15,35 +15,49 @@ import type { HeavyApi } from '../../shared/workers/heavy.worker';
 async function main(): Promise<void> {
   console.log('=== Worker Lifecycle Demo ===\n');
 
-  // --- Single Worker Lifecycle ---
-  console.log('[Worker]');
-  const worker = await createWorker<MathApi>('math.worker.ts');
+  let worker: Awaited<ReturnType<typeof createWorker<MathApi>>> | null = null;
+  let pool: Awaited<ReturnType<typeof createPool<HeavyApi>>> | null = null;
 
-  console.log(`  isDestroyed(): ${worker.isDestroyed()}`);
+  try {
+    // --- Single Worker Lifecycle ---
+    console.log('[Worker]');
+    worker = await createWorker<MathApi>('math.worker.ts');
 
-  const result = await worker.use().add(10, 20);
-  console.log(`  add(10, 20) = ${result}`);
+    console.log(`  isDestroyed(): ${worker.isDestroyed()}`);
 
-  console.log('  destroy() called...');
-  await worker.destroy();
-  console.log(`  isDestroyed(): ${worker.isDestroyed()}`);
+    const result = await worker.use().add(10, 20);
+    console.log(`  add(10, 20) = ${result}`);
 
-  console.log('  destroy() called again (idempotent)...');
-  await worker.destroy();
-  console.log(`  isDestroyed(): ${worker.isDestroyed()}`);
+    console.log('  destroy() called...');
+    await worker.destroy();
+    console.log(`  isDestroyed(): ${worker.isDestroyed()}`);
 
-  // --- Pool Lifecycle ---
-  console.log('\n[Pool]');
-  const pool = await createPool<HeavyApi>('heavy.worker.ts', 3);
+    console.log('  destroy() called again (idempotent)...');
+    await worker.destroy();
+    console.log(`  isDestroyed(): ${worker.isDestroyed()}`);
 
-  console.log(`  getNumOfWorkers(): ${pool.getNumOfWorkers()}`);
-  console.log(`  isDestroyed(): ${pool.isDestroyed()}`);
+    // --- Pool Lifecycle ---
+    console.log('\n[Pool]');
+    pool = await createPool<HeavyApi>('heavy.worker.ts', 3);
 
-  console.log('  destroy() called...');
-  await pool.destroy();
-  console.log(`  isDestroyed(): ${pool.isDestroyed()}`);
+    console.log(`  getNumOfWorkers(): ${pool.getNumOfWorkers()}`);
+    console.log(`  isDestroyed(): ${pool.isDestroyed()}`);
 
-  console.log('\nLifecycle demo complete.');
+    console.log('  destroy() called...');
+    await pool.destroy();
+    console.log(`  isDestroyed(): ${pool.isDestroyed()}`);
+
+    console.log('\nLifecycle demo complete.');
+  } finally {
+    // Defensive cleanup — idempotent destroy() is safe to call even if already destroyed
+    if (worker && !worker.isDestroyed()) {
+      await worker.destroy();
+    }
+    if (pool && !pool.isDestroyed()) {
+      await pool.destroy();
+    }
+    console.log('All resources cleaned up.');
+  }
 }
 
 main().catch((err: unknown) => {

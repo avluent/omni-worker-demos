@@ -125,7 +125,7 @@
 <!-- Result area -->
 <div aria-live="polite" aria-atomic="true">
   {#if status === 'running'}
-    <div class="result-box">
+    <div class="status-footer state-running">
       <span class="spinner" aria-hidden="true"></span> Computing...
     </div>
   {/if}

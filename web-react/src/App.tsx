@@ -111,7 +111,6 @@ export function App({ onStatusChange }: AppProps): JSX.Element {
   useEffect(() => {
     setStatus('idle', `${activeTabId.replace(/-/g, ' ')} tab selected`);
   }, [activeTabId, setStatus]);
-
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLButtonElement>) => {
       const currentButton = e.currentTarget;
@@ -131,7 +130,8 @@ export function App({ onStatusChange }: AppProps): JSX.Element {
         case 'ArrowUp':
           e.preventDefault();
           nextIndex =
-            (currentIndex - 1 + allTabs.length) % allTabs.length;
+            (currentIndex - 1 + allTabs.length) %
+            allTabs.length;
           break;
         case 'Home':
           e.preventDefault();
@@ -141,6 +141,10 @@ export function App({ onStatusChange }: AppProps): JSX.Element {
           e.preventDefault();
           nextIndex = allTabs.length - 1;
           break;
+        case 'Escape':
+          // Dismiss any active modal or error (handled by tab components)
+          e.preventDefault();
+          return;
         default:
           return;
       }

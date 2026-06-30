@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from 'svelte';
   import SingleWorkerTab from './SingleWorkerTab.svelte';
   import WorkerPoolTab from './WorkerPoolTab.svelte';
   import ErrorHandlingTab from './ErrorHandlingTab.svelte';
@@ -42,8 +43,18 @@
     setStatus('idle', `${label} tab selected`);
   }
 
+  /** Focus the tab button with the given ID. */
+  async function focusTab(tabId: string): Promise<void> {
+    // Wait for Svelte to update the DOM so tabindex reflects the new active tab
+    await tick();
+    const tabEl = document.getElementById(`tab-${tabId}`);
+    if (tabEl) {
+      tabEl.focus();
+    }
+  }
+
   /** Keyboard navigation handler for the tablist. */
-  function handleTabKeydown(e: KeyboardEvent): void {
+  async function handleTabKeydown(e: KeyboardEvent): Promise<void> {
     const currentIndex = TABS.findIndex((t) => t.id === activeTab);
     if (currentIndex === -1) return;
 
@@ -76,7 +87,10 @@
     }
 
     if (nextIndex !== null) {
-      switchTab(TABS[nextIndex].id);
+      const nextTabId = TABS[nextIndex].id;
+      switchTab(nextTabId);
+      // Move focus to the newly active tab (WAI-ARIA tab pattern)
+      await focusTab(nextTabId);
     }
   }
 </script>
