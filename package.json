@@ -8,6 +8,9 @@
     "web-react",
     "web-svelte"
   ],
+  "scripts": {
+    "postinstall": "node scripts/setup-omni-worker.mjs"
+  },
   "dependencies": {
     "@anonaddy/omni-worker": "git+https://github.com/avluent/omni-worker.git",
     "lodash-es": "^4.17.21"
