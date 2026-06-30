@@ -56,12 +56,28 @@
     });
   }
 
+  /** Maximum time allowed per individual task (30 s). */
+  const TASK_TIMEOUT_MS = 30_000;
+
+  /**
+   * Wraps a promise with a timeout. Rejects with a TimeoutError if the
+   * underlying promise does not settle within `ms` milliseconds.
+   */
+  function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+    return Promise.race([
+      promise,
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error(`Task "${label}" timed out after ${ms}ms`)), ms),
+      ),
+    ]);
+  }
+
   /** Run all pool tasks in parallel. */
   async function run(): Promise<void> {
     disabled = true;
 
     // Reset progress
-    tasks = defaultTasks.map((task, _i) => ({
+    tasks = defaultTasks.map((task) => ({
       label: task.label,
       pct: 0,
       text: 'Pending',
@@ -72,11 +88,18 @@
 
     // Create pool (destroy existing first)
     if (pool && !pool.isDestroyed()) {
+      console.log('[WorkerPoolTab] Destroying existing pool');
       await pool.destroy();
     }
     pool = omniWorkerPool<HeavyApi>('heavy', workerUrl as string, {
       count: poolSize,
     });
+    console.log(`[WorkerPoolTab] Created pool with ${poolSize} workers`);
+
+    // FIX 1: Capture pool in a local const so that even if the module-level
+    // `pool` variable is later reassigned (e.g. by a rapid second click),
+    // every task inside Promise.all still references the correct pool instance.
+    const currentPool = pool;
 
     const overallStart = performance.now();
     const pending = new Set<number>();
@@ -89,6 +112,8 @@
     try {
       await Promise.all(
         defaultTasks.map(async (task, index) => {
+          console.log(`[WorkerPoolTab] Dispatching task[${index}]: ${task.label}`);
+
           // Simulate 20% progress immediately
           updateProgress(index, 20, 'Running...');
 
@@ -96,19 +121,26 @@
           let result: unknown;
 
           try {
-            switch (task.fn) {
-              case 'fibonacci':
-                result = await pool!.use().fibonacci(task.arg);
-                break;
-              case 'primeCheck':
-                result = await pool!.use().primeCheck(task.arg);
-                break;
-              case 'sleep':
-                result = await pool!.use().sleep(task.arg);
-                break;
-            }
+            // FIX 3: Wrap each call in a timeout so hung workers never
+            // block the entire run.
+            const taskPromise = (async () => {
+              switch (task.fn) {
+                case 'fibonacci':
+                  return currentPool.use().fibonacci(task.arg);
+                case 'primeCheck':
+                  return currentPool.use().primeCheck(task.arg);
+                case 'sleep':
+                  return currentPool.use().sleep(task.arg);
+                default:
+                  throw new Error(`Unknown task function: ${String(task.fn)}`);
+              }
+            })();
+
+            result = await withTimeout(taskPromise, TASK_TIMEOUT_MS, task.label);
           } catch (err) {
-            updateProgress(index, 100, 'Error');
+            const msg = err instanceof Error ? err.message : String(err);
+            console.warn(`[WorkerPoolTab] Task[${index}] failed: ${msg}`);
+            updateProgress(index, 100, `Error: ${msg}`);
             pending.delete(index);
             if (pending.size === 0) {
               const totalElapsed = (performance.now() - overallStart).toFixed(2);
@@ -118,6 +150,10 @@
           }
 
           const elapsed = (performance.now() - start).toFixed(2);
+          console.log(`[WorkerPoolTab] Task[${index}] completed: ${task.label} = ${result} (${elapsed}ms)`);
+
+          // FIX 4/5: Force reactivity by creating a brand-new array and
+          // ensuring the progress bar reaches exactly 100%.
           updateProgress(index, 100, `${result} (${elapsed}ms)`);
 
           pending.delete(index);

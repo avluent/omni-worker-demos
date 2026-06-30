@@ -18,6 +18,9 @@
   let error: string | null = null;
   let disabled: boolean = false;
 
+  /** Human-readable worker lifecycle state. */
+  let workerStatus: 'idle' | 'ready' | 'destroyed' = 'idle';
+
   const operations: Record<string, keyof MathApi> = {
     add: 'add',
     subtract: 'subtract',
@@ -27,6 +30,8 @@
 
   onMount(() => {
     worker = omniWorker<MathApi>('math', workerUrl as string);
+    console.log('[SingleWorkerTab] Worker created successfully');
+    workerStatus = 'ready';
     status = 'idle';
     setStatus('idle', 'Single Worker tab ready');
   });
@@ -36,6 +41,7 @@
       worker.destroy();
     }
     worker = null;
+    workerStatus = 'destroyed';
   });
 
   /** Execute the selected math operation. */
@@ -54,8 +60,12 @@
       const w = worker;
       if (!w || w.isDestroyed()) {
         worker = omniWorker<MathApi>('math', workerUrl as string);
+        console.log('[SingleWorkerTab] Worker created successfully');
       }
 
+      workerStatus = 'ready';
+
+      console.log(`[SingleWorkerTab] Calling task: ${op}(${a}, ${b})`);
       const start = performance.now();
       let res: number;
 
@@ -69,6 +79,7 @@
       result = `Result: ${res}\nTime: ${elapsed}ms`;
       status = 'success';
       setStatus('success', `Math "${op}" completed in ${elapsed}ms`);
+      console.log(`[SingleWorkerTab] Task "${op}" completed: result=${res}, time=${elapsed}ms`);
     } catch (err) {
       error = err instanceof Error ? err.message : 'An unexpected error occurred';
       status = 'error';
@@ -80,6 +91,20 @@
 </script>
 
 <h2 style="margin-top: 0">Single Worker Demo</h2>
+
+<!-- Worker status indicator -->
+<div class="worker-status" role="status" aria-live="polite">
+  <span class="status-dot {workerStatus}" aria-hidden="true"></span>
+  <span class="status-label">
+    {#if workerStatus === 'ready'}
+      Worker alive
+    {:else if workerStatus === 'destroyed'}
+      Worker destroyed
+    {:else}
+      Worker idle
+    {/if}
+  </span>
+</div>
 
 <p style="color: #555; font-size: 0.9rem">
   Uses omniWorker&lt;MathApi&gt;() — a single Web Worker with Comlink proxy.

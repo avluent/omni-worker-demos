@@ -37,7 +37,7 @@ export function SingleWorkerTab(): JSX.Element {
   const [loading, setLoading] = useState(false);
 
   // Worker lifecycle managed by hook: created on mount, destroyed on unmount
-  const { worker } = useOmniWorker<MathApi>(() =>
+  const { worker, isReady, isDestroyed } = useOmniWorker<MathApi>(() =>
     omniWorker<MathApi>('math', workerUrl),
   );
 
@@ -83,6 +83,40 @@ export function SingleWorkerTab(): JSX.Element {
         Uses omniWorker&lt;MathApi&gt;() — a single Web Worker with Comlink proxy.
         Enter two numbers and pick an operation.
       </p>
+
+      {/* Worker status badge */}
+      <div
+        className="status-badge"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          padding: '8px 16px',
+          background: '#f0f9ff',
+          border: '1px solid #bae6fd',
+          borderRadius: '6px',
+          marginBottom: '16px',
+          fontSize: '14px',
+        }}
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        <span
+          className={`status-dot${!isReady && !isDestroyed ? '' : isDestroyed ? ' idle' : ' error'}`}
+          style={{
+            width: '8px',
+            height: '8px',
+            borderRadius: '50%',
+            background: isDestroyed ? '#9ca3af' : isReady ? '#22c55e' : '#ef4444',
+          }}
+          aria-hidden="true"
+        />
+        {isDestroyed
+          ? 'Destroyed'
+          : isReady
+            ? 'Worker ready — spawned successfully'
+            : 'Worker not loaded'}
+      </div>
 
       <div className="control-group">
         <div className="input-field">

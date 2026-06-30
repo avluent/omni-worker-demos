@@ -50,7 +50,7 @@ export function WorkerPoolTab(): JSX.Element {
 
   // Pool lifecycle managed by hook: created on mount, destroyed on unmount
   // Note: poolSize is baked in at mount; changing it remounts this tab
-  const { pool, workerCount } = useOmniWorkerPool<HeavyApi>(() =>
+  const { pool, workerCount, isReady, isDestroyed } = useOmniWorkerPool<HeavyApi>(() =>
     omniWorkerPool<HeavyApi>('heavy', workerUrl, { count: poolSize }),
   );
 
@@ -150,6 +150,40 @@ export function WorkerPoolTab(): JSX.Element {
         Uses omniWorkerPool&lt;HeavyApi&gt;() — a pool of {workerCount} Web Workers
         with round-robin dispatch. Runs {DEFAULT_TASKS.length} tasks in parallel.
       </p>
+
+      {/* Pool status badge */}
+      <div
+        className="status-badge"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          padding: '8px 16px',
+          background: '#f0f9ff',
+          border: '1px solid #bae6fd',
+          borderRadius: '6px',
+          marginBottom: '16px',
+          fontSize: '14px',
+        }}
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        <span
+          className={`status-dot${!isReady && !isDestroyed ? '' : isDestroyed ? ' idle' : ' error'}`}
+          style={{
+            width: '8px',
+            height: '8px',
+            borderRadius: '50%',
+            background: isDestroyed ? '#9ca3af' : isReady ? '#22c55e' : '#ef4444',
+          }}
+          aria-hidden="true"
+        />
+        {isDestroyed
+          ? 'Pool destroyed'
+          : isReady
+            ? `Pool active (${workerCount} worker${workerCount === 1 ? '' : 's'})`
+            : 'Pool not loaded'}
+      </div>
 
       <div className="control-group">
         <div className="input-field">
