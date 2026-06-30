@@ -357,6 +357,34 @@ body {
   background: currentColor;
 }
 
+/* ── Worker Status Indicator ──────────────────────────────────── */
+
+.worker-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.status-dot.ready {
+  background: #22c55e;
+}
+.status-dot.idle {
+  background: #9ca3af;
+}
+.status-dot.destroyed {
+  background: #ef4444;
+}
+
 /* ── Screen-reader only utility ───────────────────────────────── */
 
 .sr-only {

@@ -15,16 +15,47 @@ import type { MathApi } from '../types';
 import type { TabModule, StatusCallback } from '../app';
 
 /**
+ * Possible human-readable states for the worker status indicator.
+ */
+type WorkerStatus = 'idle' | 'ready' | 'destroyed';
+
+/**
  * Manages a single omniWorker instance for the math worker.
  */
 export class SingleWorkerTab implements TabModule {
   private worker: ReturnType<typeof omniWorker<MathApi>> | null = null;
+  private workerStatus: WorkerStatus = 'idle';
+  private statusEl: HTMLElement | null = null;
 
   async destroy(): Promise<void> {
     if (this.worker && !this.worker.isDestroyed()) {
       await this.worker.destroy();
     }
     this.worker = null;
+    this.workerStatus = 'destroyed';
+    this.updateStatusDisplay();
+  }
+
+  /**
+   * Updates the visual status indicator to reflect the current
+   * worker state (idle / ready / destroyed).
+   */
+  private updateStatusDisplay(): void {
+    if (!this.statusEl) return;
+
+    const dot = this.statusEl.querySelector('.status-dot') as HTMLElement | null;
+    const label = this.statusEl.querySelector('.status-label') as HTMLElement | null;
+
+    if (dot) {
+      dot.className = `status-dot ${this.workerStatus}`;
+    }
+    if (label) {
+      label.textContent = this.workerStatus === 'ready'
+        ? 'Worker alive'
+        : this.workerStatus === 'destroyed'
+          ? 'Worker destroyed'
+          : 'Worker idle';
+    }
   }
 
   render(panel: HTMLElement, onStatus: StatusCallback): void {
@@ -33,6 +64,29 @@ export class SingleWorkerTab implements TabModule {
     h2.textContent = 'Single Worker Demo';
     h2.style.marginTop = '0';
     panel.appendChild(h2);
+
+    // ── Status indicator ──
+    const statusContainer = document.createElement('div');
+    statusContainer.className = 'worker-status';
+    statusContainer.id = 'worker-status';
+    statusContainer.setAttribute('role', 'status');
+    statusContainer.setAttribute('aria-live', 'polite');
+
+    const statusDot = document.createElement('span');
+    statusDot.className = 'status-dot idle';
+    statusDot.setAttribute('aria-hidden', 'true');
+
+    const statusLabel = document.createElement('span');
+    statusLabel.className = 'status-label';
+    statusLabel.textContent = 'Worker idle';
+
+    statusContainer.appendChild(statusDot);
+    statusContainer.appendChild(statusLabel);
+    panel.appendChild(statusContainer);
+
+    this.statusEl = statusContainer;
+    this.workerStatus = 'idle';
+    this.updateStatusDisplay();
 
     // ── Description ──
     const desc = document.createElement('p');
@@ -158,8 +212,13 @@ export class SingleWorkerTab implements TabModule {
     try {
       if (!this.worker || this.worker.isDestroyed()) {
         this.worker = omniWorker<MathApi>('math', workerUrl);
+        console.log('[SingleWorkerTab] Worker created successfully');
       }
 
+      this.workerStatus = 'ready';
+      this.updateStatusDisplay();
+
+      console.log(`[SingleWorkerTab] Calling task: ${op}(${a}, ${b})`);
       const start = performance.now();
       let result: number;
 
@@ -176,6 +235,8 @@ export class SingleWorkerTab implements TabModule {
           break;
       }
       const elapsed = (performance.now() - start).toFixed(2);
+
+      console.log(`[SingleWorkerTab] Task "${op}" completed: result=${result}, time=${elapsed}ms`);
 
       const box = document.createElement('div');
       box.className = 'result-box';

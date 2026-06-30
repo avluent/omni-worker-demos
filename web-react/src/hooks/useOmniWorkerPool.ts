@@ -9,7 +9,7 @@
  * @returns Object with pool instance, worker count, readiness, and destroy
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { IOmniWorkerPool } from '@anonaddy/omni-worker';
 
 export interface UseOmniWorkerPoolResult<T> {
@@ -35,22 +35,30 @@ export function useOmniWorkerPool<T>(
   const [isReady, setIsReady] = useState(false);
   const [isDestroyed, setIsDestroyed] = useState(false);
 
+  // Store createPool in a ref so the effect doesn't depend on it (avoids infinite re-renders)
+  const createRef = useRef(createPool);
+  createRef.current = createPool;
+
   // Create pool on mount, destroy on unmount
   useEffect(() => {
-    const p = createPool();
+    const factory = createRef.current;
+    const p = factory();
+    console.log('[useOmniWorkerPool] Pool created');
     setPool(p);
     setWorkerCount(p.getNumOfWorkers());
     setIsReady(true);
     setIsDestroyed(false);
 
     return () => {
+      console.log('[useOmniWorkerPool] Destroying pool');
       p.destroy().then(() => {
+        console.log('[useOmniWorkerPool] Pool destroyed');
         setIsDestroyed(true);
         setIsReady(false);
         setPool(null);
       });
     };
-  }, [createPool]);
+  }, []);
 
   const destroy = useCallback(async (): Promise<void> => {
     if (pool && !pool.isDestroyed()) {

@@ -179,13 +179,18 @@ export class WorkerPoolTab implements TabModule {
 
     onStatus('running', `Pool running (${poolSize} workers)...`);
 
-    // Create pool
+    // Create pool — destroy any previous one first
     if (this.pool && !this.pool.isDestroyed()) {
       await this.pool.destroy();
     }
     this.pool = omniWorkerPool<HeavyApi>('heavy', workerUrl, {
       count: poolSize,
     });
+    console.log('[WorkerPoolTab] Pool created with', poolSize, 'worker(s)');
+
+    // Snapshot the pool reference so concurrent .use() calls always hit
+    // the same live instance even if handleRun is re-entered later.
+    const localPool = this.pool;
 
     const overallStart = performance.now();
     const pending = new Set<number>();
@@ -200,23 +205,48 @@ export class WorkerPoolTab implements TabModule {
         DEFAULT_TASKS.map(async (task, index) => {
           // Simulate 20% progress immediately
           updateProgress(index, 20, 'Running...');
+          console.log(
+            `[WorkerPoolTab] Task ${index} started: ${task.label}`,
+          );
 
           const start = performance.now();
           let result: unknown;
 
+          // 30-second safety timeout — prevents a hung worker from
+          // blocking the entire pool forever.
+          const TASK_TIMEOUT_MS = 30_000;
+          const timeoutPromise = new Promise<never>((_, reject) => {
+            setTimeout(
+              () =>
+                reject(
+                  new Error(
+                    `Task ${index} (${task.label}) timed out after ${TASK_TIMEOUT_MS}ms`,
+                  ),
+                ),
+              TASK_TIMEOUT_MS,
+            );
+          });
+
           try {
-            switch (task.fn) {
-              case 'fibonacci':
-                result = await this.pool!.use().fibonacci(task.arg);
-                break;
-              case 'primeCheck':
-                result = await this.pool!.use().primeCheck(task.arg);
-                break;
-              case 'sleep':
-                result = await this.pool!.use().sleep(task.arg);
-                break;
-            }
+            // Use the stable snapshot instead of this.pool so Comlink
+            // proxies never cross a destroy / recreate boundary.
+            const proxy = localPool!.use();
+            const workPromise = (async () => {
+              switch (task.fn) {
+                case 'fibonacci':
+                  return proxy.fibonacci(task.arg);
+                case 'primeCheck':
+                  return proxy.primeCheck(task.arg);
+                case 'sleep':
+                  return proxy.sleep(task.arg);
+              }
+            })();
+            result = await Promise.race([workPromise, timeoutPromise]);
           } catch (err) {
+            console.error(
+              `[WorkerPoolTab] Task ${index} (${task.label}) error:`,
+              err,
+            );
             updateProgress(index, 100, 'Error');
             pending.delete(index);
             if (pending.size === 0) {
@@ -233,6 +263,9 @@ export class WorkerPoolTab implements TabModule {
 
           const elapsed = (performance.now() - start).toFixed(2);
           updateProgress(index, 100, `${result} (${elapsed}ms)`);
+          console.log(
+            `[WorkerPoolTab] Task ${index} completed: ${task.label} in ${elapsed}ms`,
+          );
 
           pending.delete(index);
           if (pending.size === 0) {
@@ -246,6 +279,10 @@ export class WorkerPoolTab implements TabModule {
           }
         }),
       );
+    } catch (err) {
+      // Catch-all for any unexpected aggregate error from Promise.all
+      console.error('[WorkerPoolTab] Unhandled error in pool run:', err);
+      onStatus('error', `Pool run failed: ${String(err)}`);
     } finally {
       btn.disabled = false;
     }
@@ -258,6 +295,12 @@ export class WorkerPoolTab implements TabModule {
     ): void {
       const fill = fills[index] as HTMLDivElement;
       const textEl = texts[index] as HTMLSpanElement;
+      if (!fill || !textEl) {
+        console.error(
+          `[WorkerPoolTab] updateProgress: DOM element missing for index ${index}`,
+        );
+        return;
+      }
       if (pct === 100) {
         fill.classList.add('done');
       }

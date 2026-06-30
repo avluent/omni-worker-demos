@@ -9,7 +9,7 @@
  * @returns Object with worker instance, readiness state, and destroy function
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { IOmniWorker } from '@anonaddy/omni-worker';
 
 export interface UseOmniWorkerResult<T> {
@@ -33,21 +33,29 @@ export function useOmniWorker<T>(
   const [isReady, setIsReady] = useState(false);
   const [isDestroyed, setIsDestroyed] = useState(false);
 
-  // Create worker on mount, destroy on unmount
+  // Stable ref for the factory function — prevents infinite re-renders
+  // when the parent passes an inline arrow function (new reference each render).
+  const createRef = useRef(createWorker);
+  createRef.current = createWorker;
+
+  // Create worker once on mount, destroy on unmount
   useEffect(() => {
-    const w = createWorker();
+    const factory = createRef.current;
+    console.log('[useOmniWorker] Creating worker instance');
+    const w = factory();
     setWorker(w);
     setIsReady(true);
     setIsDestroyed(false);
 
     return () => {
+      console.log('[useOmniWorker] Destroying worker instance');
       w.destroy().then(() => {
         setIsDestroyed(true);
         setIsReady(false);
         setWorker(null);
       });
     };
-  }, [createWorker]);
+  }, []); // empty deps — runs exactly once on mount
 
   const destroy = useCallback(async (): Promise<void> => {
     if (worker && !worker.isDestroyed()) {
