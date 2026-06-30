@@ -13,6 +13,9 @@
     "demo:all": "tsx demos/01_single_worker.ts && tsx demos/02_worker_with_deps.ts && tsx demos/03_worker_pool.ts && tsx demos/04_error_handling.ts && tsx demos/05_lifecycle.ts && tsx demos/06_complex_data.ts",
     "typecheck": "tsc --noEmit"
   },
+  "dependencies": {
+    "esbuild": "^0.24.0"
+  },
   "devDependencies": {
     "@types/lodash-es": "^4.17.12",
     "@types/node": "^26.0.1",
